@@ -1,5 +1,5 @@
-import 'package:pkb/pkb.dart' as pkb;
+import 'package:pkb/executable.dart' as executable;
 
-main(List<String> arguments) {
-  print('Hello world: ${pkb.calculate()}!');
+void main(List<String> arguments) {
+  executable.main(arguments);
 }
