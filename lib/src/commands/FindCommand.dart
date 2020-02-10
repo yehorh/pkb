@@ -2,18 +2,21 @@ import 'package:args/command_runner.dart';
 import 'package:path/path.dart' as p;
 import 'package:console/console.dart';
 import 'dart:io';
+import 'dart:convert';
 
 import '../utils/ExtendedIterable.dart';
 
 const interactiveString = 'interactive';
 const regexpString = 'regexp';
 const directoryString = 'directory';
+const configString = 'config';
 
 class FindCommand extends Command {
   FindCommand() {
     argParser.addOption(directoryString, abbr: 'd');
     argParser.addFlag(interactiveString, abbr: 'i');
     argParser.addOption(regexpString, abbr: 'e');
+    argParser.addOption(configString, abbr: 'c');
   }
 
   @override
@@ -24,6 +27,32 @@ class FindCommand extends Command {
 
   @override
   void run() async {
+
+//    LOAD CONFIG
+//
+//  https://stackoverflow.com/questions/11077223/what-order-of-reading-configuration-values
+//    Command line.
+//    Config file that's name is declared on the command line.
+//    Environment vars
+//    Local config file (if exists)
+//    Global config file (if exists)
+
+    Config config = Config();
+
+    String configArg = argResults[configString];
+
+    String configPath;
+    if (configArg != null) {
+      configPath = p.normalize(p.absolute(configArg));
+    } else {
+      configPath = getUserConfigFilePath();
+    };
+
+    var configEnv = loadConfigEnv();
+
+    var config2 = await loadConfigFile(configPath);
+
+//    OVERWRITE SEARCH DIRECTORY
     String pathArg = argResults[directoryString];
     if (pathArg == null) {
       pathArg = Directory.current.path;
@@ -68,11 +97,47 @@ class FindCommand extends Command {
       }
     } else {
       print('$directoryPath is not a directory');
-    }
-    ;
+    };
 
     print(argResults[directoryString]);
   }
+}
+
+class Config {
+  String directory = "";
+}
+
+loadConfigEnv() {
+  Map<String, String> envVars = Platform.environment;
+  var directory = envVars['DIRECTORY'];
+  print(directory);
+}
+
+String getUserConfigFilePath() {
+  String os = Platform.operatingSystem;
+  String home = "";
+  Map<String, String> envVars = Platform.environment;
+  if (Platform.isMacOS) {
+    home = envVars['HOME'];
+  } else if (Platform.isLinux) {
+    home = envVars['HOME'];
+  } else if (Platform.isWindows) {
+    home = envVars['UserProfile'];
+  }
+
+  return '$home/.config/pkb/config.json';
+}
+
+void loadConfigFile(String configPath) async {
+  var result;
+  var isFile = await FileSystemEntity.isFile(configPath);
+  if (isFile) {
+    var file = File(configPath);
+    var content = await file.readAsString();
+    result = json.decode(content);
+  }
+
+  return result;
 }
 
 class Output {
